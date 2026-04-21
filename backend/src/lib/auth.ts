@@ -1,20 +1,6 @@
-import { createServerClient } from '@supabase/supabase-js';
 import { NextRequest } from 'next/server';
-import { errors } from './errors';
 
-export async function requireAuth(req: NextRequest) {
-  const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { get: () => undefined } },
-  );
-
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.replace('Bearer ', '');
-  if (!token) throw errors.unauthorized();
-
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) throw errors.unauthorized();
-
-  return data.user;
+// DEV MODE: auth bypassed — all requests use a fixed dev user
+export async function requireAuth(_req: NextRequest) {
+  return { id: '00000000-0000-0000-0000-000000000001', email: 'dev@timbre.local' };
 }

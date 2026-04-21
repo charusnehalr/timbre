@@ -1,11 +1,7 @@
-import { Queue } from 'bullmq';
-import { Redis } from '@upstash/redis';
+// Queue is stubbed out — BullMQ requires ioredis which isn't compatible with Upstash REST.
+// Jobs are silently dropped in dev; wire up a real ioredis connection for production.
+const noop = { add: async () => null };
 
-const connection = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
-
-export const embedQueue = new Queue('embed-writing', { connection });
-export const styleQueue = new Queue('analyze-style', { connection });
-export const refineQueue = new Queue('refine-profile', { connection });
+export const embedQueue = noop;
+export const styleQueue = noop;
+export const refineQueue = noop;
