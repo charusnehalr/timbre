@@ -1,5 +1,6 @@
+import time
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
@@ -9,9 +10,11 @@ structlog.configure(
     processors=[
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
+        structlog.dev.ConsoleRenderer(),
     ]
 )
+
+log = structlog.get_logger()
 
 app = FastAPI(title="Timbre AI Core", version="0.1.0")
 
@@ -22,11 +25,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    log.info("request_started", method=request.method, path=request.url.path)
+    try:
+        response = await call_next(request)
+        elapsed = round((time.perf_counter() - start) * 1000)
+        log.info(
+            "request_finished",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            ms=elapsed,
+        )
+        return response
+    except Exception as exc:
+        elapsed = round((time.perf_counter() - start) * 1000)
+        log.error("request_failed", method=request.method, path=request.url.path, ms=elapsed, error=str(exc))
+        raise
+
+
 app.include_router(interview.router)
 app.include_router(analyze.router)
 app.include_router(generate.router)
 app.include_router(transcribe.router)
 app.include_router(embed.router)
+
+log.info(
+    "ai_core_started",
+    host=settings.host,
+    port=settings.port,
+    embed_model=settings.embed_model,
+    heavy_model=settings.heavy_model,
+    light_model=settings.light_model,
+)
 
 
 @app.get("/health")

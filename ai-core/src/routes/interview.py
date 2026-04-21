@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, Request
+import structlog
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from ..agents.interview_agent import InterviewAgent
 from ..deps import get_interview_agent, verify_secret
 
+log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/interview", tags=["interview"])
 
 
@@ -21,5 +23,11 @@ async def interview_turn(
     body: TurnRequest,
     agent: InterviewAgent = Depends(get_interview_agent),
 ):
-    reply, facts = await agent.turn(body.history)
-    return TurnResponse(reply=reply, captured_facts=facts)
+    log.info("interview_turn", history_len=len(body.history))
+    try:
+        reply, facts = await agent.turn(body.history)
+        log.info("interview_turn_done", facts_captured=len(facts))
+        return TurnResponse(reply=reply, captured_facts=facts)
+    except Exception as exc:
+        log.error("interview_turn_error", error=str(exc))
+        raise

@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     generator_model: str = "llama-3.3-70b-versatile"
     heavy_model: str = "llama-3.3-70b-versatile"
     light_model: str = "llama-3.1-8b-instant"
-    embed_model: str = "models/text-embedding-004"
+    embed_model: str = "gemini-embedding-001"
     whisper_model: str = "whisper-large-v3"
     fallback_model: str = "gemini-2.5-flash-lite"
 
