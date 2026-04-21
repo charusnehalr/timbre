@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { Mic } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
 interface MicInputProps {
@@ -19,12 +20,10 @@ export function MicInput({ onTranscript, token }: MicInputProps) {
       setRecording(false);
       return;
     }
-
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const recorder = new MediaRecorder(stream);
     mediaRef.current = recorder;
     chunksRef.current = [];
-
     recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
     recorder.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
@@ -32,7 +31,6 @@ export function MicInput({ onTranscript, token }: MicInputProps) {
       onTranscript(text);
       stream.getTracks().forEach((t) => t.stop());
     };
-
     recorder.start();
     setRecording(true);
   }
@@ -40,10 +38,17 @@ export function MicInput({ onTranscript, token }: MicInputProps) {
   return (
     <button
       onClick={toggle}
-      title={recording ? 'Stop recording' : 'Record audio'}
-      className={`p-2 rounded border ${recording ? 'bg-red-100 border-red-400' : 'hover:bg-gray-100'}`}
+      title={recording ? 'Stop recording' : 'Dictate'}
+      className="btn-ghost"
+      style={{
+        gap: 8,
+        background: recording ? 'rgba(242,97,78,0.15)' : undefined,
+        borderColor: recording ? 'rgba(242,97,78,0.5)' : undefined,
+        color: recording ? 'var(--danger)' : undefined,
+      }}
     >
-      🎙
+      <Mic size={14} />
+      {recording ? 'Listening…' : 'Dictate'}
     </button>
   );
 }

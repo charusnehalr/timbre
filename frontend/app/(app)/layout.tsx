@@ -1,18 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-client';
 import { apiClient } from '@/lib/api-client';
+import { useTweaksStore, ACCENT_PALETTES, AccentKey } from '@/lib/tweaks-store';
+import { Cursor } from '@/components/ui/Cursor';
+import { MeshBackground } from '@/components/ui/MeshBackground';
+import {
+  AlignLeft, Target, ArrowUpToLine, LayoutGrid, SlidersHorizontal, Sparkles, LogIn,
+} from 'lucide-react';
 
 const NAV = [
-  { href: '/canvas', label: 'Canvas', icon: '✍️' },
-  { href: '/onboarding', label: 'Onboarding', icon: '🎙️' },
-  { href: '/studio', label: 'Voice Studio', icon: '🧬' },
-  { href: '/spaces', label: 'Spaces', icon: '🗂️' },
+  { href: '/canvas',     label: 'Canvas',     Icon: AlignLeft },
+  { href: '/studio',     label: 'Studio',      Icon: Target },
+  { href: '/onboarding', label: 'Onboarding',  Icon: ArrowUpToLine },
+  { href: '/spaces',     label: 'Spaces',      Icon: LayoutGrid },
 ];
 
+const CRUMBS: Record<string, [string, string, string]> = {
+  '/canvas':     ['timbre', 'personal', 'canvas'],
+  '/studio':     ['timbre', 'personal', 'studio'],
+  '/onboarding': ['timbre', 'setup',    'onboarding'],
+  '/spaces':     ['timbre', 'manage',   'spaces'],
+};
+
+// ── Accent applier ──────────────────────────────────────────────
+function AccentApplier() {
+  const accent = useTweaksStore((s) => s.accent);
+  useEffect(() => {
+    const pal = ACCENT_PALETTES[accent];
+    const root = document.documentElement;
+    root.style.setProperty('--accent', pal.accent);
+    root.style.setProperty('--accent-dim', pal.dim);
+    root.style.setProperty('--accent-glow', pal.glow);
+  }, [accent]);
+  return null;
+}
+
+// ── Login modal ─────────────────────────────────────────────────
 function LoginModal({ onClose }: { onClose: () => void }) {
   const setToken = useAuthStore((s) => s.setToken);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -44,64 +71,46 @@ function LoginModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-start p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-start p-4"
+      onClick={onClose}
+      style={{ backdropFilter: 'blur(4px)' }}
+    >
       <div
-        className="bg-white border border-gray-200 rounded-xl shadow-2xl p-5 w-80 mb-2 ml-2"
+        className="glass"
+        style={{ width: 300, padding: 20, marginBottom: 8, marginLeft: 8 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => { setMode('login'); setError(''); }}
-            className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-colors ${mode === 'login' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-          >
-            Sign in
-          </button>
-          <button
-            onClick={() => { setMode('signup'); setError(''); }}
-            className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-colors ${mode === 'signup' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-          >
-            Sign up
-          </button>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {(['login', 'signup'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); setError(''); }}
+              style={{
+                flex: 1, padding: '6px 0', borderRadius: 999,
+                background: mode === m ? 'var(--accent)' : 'var(--glass)',
+                color: mode === m ? '#0B0B0B' : 'var(--text-mute)',
+                fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                border: '1px solid ' + (mode === m ? 'var(--accent)' : 'var(--stroke)'),
+                transition: 'all 0.25s var(--ease)',
+              }}
+            >
+              {m === 'login' ? 'Sign in' : 'Sign up'}
+            </button>
+          ))}
         </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {mode === 'signup' && (
-            <input
-              type="text"
-              placeholder="Your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              required
-            />
+            <input className="field" type="text" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} required />
           )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            required
-            autoFocus
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            minLength={8}
-            required
-          />
+          <input className="field" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <input className="field" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
           {error && (
-            <p className={`text-xs ${error.startsWith('Account') ? 'text-green-600' : 'text-red-500'}`}>
+            <p className="mono" style={{ fontSize: 11, color: error.startsWith('Account') ? 'var(--accent)' : 'var(--danger)' }}>
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-brand-600 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 hover:bg-brand-700 transition-colors"
-          >
+          <button type="submit" disabled={loading} className="btn-primary" style={{ justifyContent: 'center' }}>
             {loading ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
         </form>
@@ -110,94 +119,222 @@ function LoginModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function UserButton() {
-  const token = useAuthStore((s) => s.token);
-  const clearToken = useAuthStore((s) => s.clearToken);
-  const [open, setOpen] = useState(false);
+// ── Tweaks panel ────────────────────────────────────────────────
+function TweaksPanel({ open }: { open: boolean }) {
+  const { accent, cursorEnabled, showMesh, setAccent, setCursorEnabled, setShowMesh } = useTweaksStore();
 
-  if (token) {
-    return (
-      <div className="relative">
-        {open && (
-          <div className="absolute bottom-12 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-2 w-44">
-            <button
-              onClick={() => { clearToken(); setOpen(false); }}
-              className="w-full text-left text-sm px-3 py-2 rounded-lg hover:bg-gray-100 text-red-500"
-            >
-              Sign out
-            </button>
-          </div>
-        )}
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-gray-100 text-sm text-gray-700 transition-colors"
-        >
-          <span className="w-7 h-7 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center font-bold">
-            U
-          </span>
-          <span className="text-xs text-gray-500">Signed in</span>
-        </button>
-      </div>
-    );
-  }
+  if (!open) return null;
 
   return (
-    <>
-      {open && <LoginModal onClose={() => setOpen(false)} />}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-gray-100 text-sm text-gray-500 transition-colors"
-      >
-        <span className="w-7 h-7 rounded-full border-2 border-dashed border-gray-300 text-gray-400 text-xs flex items-center justify-center">
-          ?
-        </span>
-        <span className="text-xs">Sign in</span>
-      </button>
-    </>
+    <div
+      className="glass screen-enter"
+      style={{
+        position: 'fixed', right: 20, bottom: 20, width: 280, padding: 16, zIndex: 100,
+        border: '1px solid var(--stroke-hi)', borderRadius: 22,
+      }}
+    >
+      <div className="t-label" style={{ marginBottom: 12 }}>Tweaks</div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+        <span style={{ color: 'var(--text-mute)', fontSize: 12 }}>Accent</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(Object.entries(ACCENT_PALETTES) as [AccentKey, typeof ACCENT_PALETTES[AccentKey]][]).map(([key, val]) => (
+            <button
+              key={key}
+              title={key}
+              className="swatch-btn"
+              onClick={() => setAccent(key)}
+              style={{
+                width: 22, height: 22, borderRadius: 999,
+                background: val.accent, cursor: 'pointer',
+                border: accent === key ? '2px solid var(--text)' : '2px solid transparent',
+                transition: 'border-color 0.2s',
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {[
+        { label: 'Mesh background', value: showMesh, set: setShowMesh },
+        { label: 'Custom cursor', value: cursorEnabled, set: setCursorEnabled },
+      ].map(({ label, value, set }) => (
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+          <span style={{ color: 'var(--text-mute)', fontSize: 12 }}>{label}</span>
+          <button
+            className="chip"
+            onClick={() => set(!value)}
+            style={{ padding: '4px 10px', fontSize: 11 }}
+          >
+            {value ? 'on' : 'off'}
+          </button>
+        </div>
+      ))}
+
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--stroke)', fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+        <span className="mono">timbre · prototype</span>
+      </div>
+    </div>
   );
 }
 
+// ── Main layout ─────────────────────────────────────────────────
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const token = useAuthStore((s) => s.token);
+  const clearToken = useAuthStore((s) => s.clearToken);
+  const { cursorEnabled, showMesh } = useTweaksStore();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+
+  const crumbs = CRUMBS[pathname] ?? ['timbre', '—', '—'];
+  const activeHref = NAV.find((n) => pathname.startsWith(n.href))?.href;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Sidebar */}
-      <nav className="w-52 bg-white border-r flex flex-col shrink-0">
-        {/* Logo */}
-        <div className="px-4 py-4 border-b">
-          <span className="font-bold text-lg text-brand-600 tracking-tight">timbre</span>
-        </div>
+    <>
+      <AccentApplier />
+      <MeshBackground visible={showMesh} />
+      {cursorEnabled && <Cursor />}
 
-        {/* Nav links */}
-        <div className="flex-1 p-2 space-y-0.5">
-          {NAV.map(({ href, label, icon }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                <span className="text-base">{icon}</span>
-                {label}
+      {loginOpen && !token && <LoginModal onClose={() => setLoginOpen(false)} />}
+      <TweaksPanel open={tweaksOpen} />
+
+      {/* App shell: 72px sidebar + main */}
+      <div
+        style={{
+          position: 'relative', zIndex: 1,
+          height: '100vh', display: 'grid', gridTemplateColumns: '72px 1fr', overflow: 'hidden',
+        }}
+      >
+        {/* ── Sidebar ── */}
+        <aside
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            padding: '22px 0', gap: 18,
+            borderRight: '1px solid var(--stroke)',
+            background: 'rgba(10,10,12,0.5)',
+            backdropFilter: 'blur(20px)',
+          }}
+        >
+          {/* Logo */}
+          <div style={{ position: 'relative' }}>
+            <div
+              style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: 'var(--accent)', color: '#0B0B0B',
+                fontFamily: 'var(--font-geist-mono)', fontSize: 18, fontWeight: 700,
+                letterSpacing: '-0.04em',
+                display: 'grid', placeItems: 'center',
+              }}
+            >
+              t
+            </div>
+            <div
+              style={{
+                position: 'absolute', inset: -4, borderRadius: 14, zIndex: -1,
+                background: 'radial-gradient(circle at center, var(--accent-glow), transparent 70%)',
+                filter: 'blur(8px)',
+              }}
+            />
+          </div>
+
+          {/* Nav */}
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 18 }}>
+            {NAV.map(({ href, label, Icon }) => (
+              <Link key={href} href={href as never} title={label}>
+                <div className={`nav-btn${activeHref === href ? ' active' : ''}`}>
+                  <Icon size={18} />
+                </div>
               </Link>
-            );
-          })}
-        </div>
+            ))}
+          </nav>
 
-        {/* User button — bottom of sidebar like GPT */}
-        <div className="p-2 border-t">
-          <UserButton />
-        </div>
-      </nav>
+          <div style={{ flex: 1 }} />
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
+          {/* Tweaks */}
+          <button
+            className="nav-btn"
+            title="Tweaks"
+            onClick={() => setTweaksOpen((o) => !o)}
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+
+          {/* Auth */}
+          {token ? (
+            <button
+              className="nav-btn"
+              title="Sign out"
+              onClick={clearToken}
+            >
+              <div
+                style={{
+                  width: 28, height: 28, borderRadius: 999,
+                  background: 'linear-gradient(135deg, var(--accent), #4EE2F2)',
+                }}
+              />
+            </button>
+          ) : (
+            <button className="nav-btn" title="Sign in" onClick={() => setLoginOpen(true)}>
+              <LogIn size={18} />
+            </button>
+          )}
+
+          {/* Version label */}
+          <div
+            className="mono"
+            style={{
+              writingMode: 'vertical-rl', fontSize: 9, color: 'var(--text-dim)',
+              letterSpacing: '0.22em', marginTop: 10, userSelect: 'none',
+            }}
+          >
+            TIMBRE · 0.4
+          </div>
+        </aside>
+
+        {/* ── Main ── */}
+        <main style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          {/* Topbar */}
+          <header
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 24px', height: 56, flexShrink: 0,
+              borderBottom: '1px solid var(--stroke)',
+              background: 'rgba(10,10,12,0.4)',
+              backdropFilter: 'blur(20px)',
+            }}
+          >
+            {/* Breadcrumbs */}
+            <div className="mono" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--text-mute)' }}>
+              <span>{crumbs[0]}</span>
+              <span style={{ color: 'var(--text-dim)' }}>/</span>
+              <span>{crumbs[1]}</span>
+              <span style={{ color: 'var(--text-dim)' }}>/</span>
+              <span style={{ color: 'var(--text)' }}>{crumbs[2]}</span>
+            </div>
+
+            {/* Status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div className="pulse-dot" />
+                <span className="mono" style={{ fontSize: 11, color: 'var(--text-mute)' }}>voice model · v12</span>
+              </div>
+              <div style={{ width: 1, height: 18, background: 'var(--stroke)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 999, background: 'linear-gradient(135deg, var(--accent), #4EE2F2)' }} />
+                <span className="mono" style={{ fontSize: 11, color: 'var(--text-mute)' }}>
+                  {token ? 'signed in' : 'guest'}
+                </span>
+              </div>
+            </div>
+          </header>
+
+          {/* Screen content */}
+          <div key={pathname} className="screen-enter" style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            {children}
+          </div>
+        </main>
+      </div>
+    </>
   );
 }

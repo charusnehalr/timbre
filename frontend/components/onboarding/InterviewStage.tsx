@@ -3,134 +3,118 @@
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-client';
+import { Mic, ArrowRight } from 'lucide-react';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+interface Message { role: 'user' | 'assistant'; content: string; }
+interface Props { spaceId: string; onComplete: () => void; }
 
-interface Props {
-  spaceId: string;
-  onComplete: () => void;
-}
+const QUESTIONS = [
+  "Describe a recent thing you shipped — in the way you'd describe it to a friend.",
+  "What's a piece of advice you'd give your 22-year-old self?",
+  "Tell me about someone you'd recommend for a job, and why.",
+];
 
-function historyKey(spaceId: string) {
-  return `timbre:onboarding:${spaceId}:history`;
-}
+function historyKey(spaceId: string) { return `timbre:onboarding:${spaceId}:history`; }
 
 export function InterviewStage({ spaceId, onComplete }: Props) {
   const token = useAuthStore((s) => s.token)!;
   const [history, setHistory] = useState<Message[]>(() => {
     if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem(historyKey(spaceId));
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem(historyKey(spaceId)) ?? '[]'); } catch { return []; }
   });
-  const [input, setInput] = useState('');
+  const [qIdx, setQIdx] = useState(0);
+  const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
 
   const userAnswers = history.filter((m) => m.role === 'user');
-  const turnCount = userAnswers.length;
 
   function saveHistory(next: Message[]) {
     setHistory(next);
     localStorage.setItem(historyKey(spaceId), JSON.stringify(next));
   }
 
-  async function sendMessage() {
-    if (!input.trim()) return;
-    const userMsg: Message = { role: 'user', content: input.trim() };
-    const nextHistory = [...history, userMsg];
-    saveHistory(nextHistory);
-    setInput('');
+  async function handleNext() {
+    if (!answer.trim()) return;
+    const userMsg: Message = { role: 'user', content: answer.trim() };
+    const next = [...history, userMsg];
+    saveHistory(next);
+    setAnswer('');
     setLoading(true);
     try {
-      const res = await apiClient.interviewTurn(token, spaceId, nextHistory);
-      saveHistory([...nextHistory, { role: 'assistant', content: res.reply }]);
+      const res = await apiClient.interviewTurn(token, spaceId, next);
+      saveHistory([...next, { role: 'assistant', content: res.reply }]);
     } finally {
       setLoading(false);
     }
+    if (qIdx < QUESTIONS.length - 1) setQIdx(qIdx + 1);
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Let's start with a conversation</h2>
-        {userAnswers.length > 0 && (
-          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-            {userAnswers.length} answer{userAnswers.length > 1 ? 's' : ''} captured
-          </span>
-        )}
-      </div>
-      <p className="text-gray-500 text-sm">
-        I'll ask you 8-10 questions to understand how you think and write.
+    <div>
+      <div className="t-label" style={{ marginBottom: 14 }}>Interview</div>
+      <h1 style={{ fontSize: 40, fontWeight: 500, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 14 }}>
+        First, tell us how you talk.
+      </h1>
+      <p style={{ fontSize: 15, color: 'var(--text-mute)', lineHeight: 1.6, marginBottom: 32, maxWidth: 520 }}>
+        Answer three short questions out loud or in writing. We&apos;re not grading the answers — we&apos;re listening to the shape of them.
       </p>
 
-      {/* Chat */}
-      <div className="border rounded-lg p-4 space-y-3 min-h-48 max-h-80 overflow-y-auto bg-gray-50">
-        {history.length === 0 && (
-          <p className="text-gray-400 text-sm">Type a message or click Send to begin.</p>
-        )}
-        {history.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <p
-              className={`rounded-lg px-3 py-2 text-sm max-w-sm ${
-                m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-white border'
-              }`}
-            >
-              {m.content}
-            </p>
+      <div className="glass" style={{ padding: 28, marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <span className="t-label">Question {qIdx + 1} of 3</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {QUESTIONS.map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 20, height: 2, borderRadius: 2,
+                  background: i <= qIdx ? 'var(--accent)' : 'var(--stroke)',
+                  transition: 'background 0.3s',
+                }}
+              />
+            ))}
           </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <p className="bg-white border rounded-lg px-3 py-2 text-sm text-gray-400">Thinking…</p>
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <input
-          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          placeholder="Your answer…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !loading && sendMessage()}
-          disabled={loading}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={loading || !input.trim()}
-          className="bg-brand-600 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          Send
-        </button>
-      </div>
-
-      {/* Saved answers summary */}
-      {userAnswers.length > 0 && (
-        <div className="border rounded-lg p-4 bg-green-50 border-green-200 space-y-2">
-          <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">
-            ✓ Answers captured this session
-          </p>
-          {userAnswers.map((m, i) => (
-            <div key={i} className="flex gap-2 text-sm">
-              <span className="text-green-500 font-bold shrink-0">Q{i + 1}</span>
-              <p className="text-gray-700 line-clamp-2">{m.content}</p>
-            </div>
-          ))}
         </div>
-      )}
 
-      {turnCount >= 5 && (
+        <div style={{ fontSize: 22, letterSpacing: '-0.01em', lineHeight: 1.4, marginBottom: 20, fontWeight: 500 }}>
+          {QUESTIONS[qIdx]}
+        </div>
+
+        <textarea
+          className="field"
+          placeholder="Type your answer, or click the mic to speak…"
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          rows={5}
+          style={{ minHeight: 140, fontSize: 15 }}
+        />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+          <button className="btn-ghost">
+            <Mic size={14} /> Record instead
+          </button>
+          <button
+            className="btn-primary"
+            disabled={!answer.trim() || loading}
+            onClick={handleNext}
+          >
+            {loading ? '…' : qIdx < QUESTIONS.length - 1 ? 'Next question' : 'Continue'}
+            <ArrowRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      <p className="mono" style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+        Typical answer: 40–120 words. Longer is better.
+      </p>
+
+      {userAnswers.length >= QUESTIONS.length && (
         <button
+          className="btn-primary"
           onClick={onComplete}
-          className="w-full bg-brand-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-brand-700 transition-colors"
+          style={{ marginTop: 24, width: '100%', justifyContent: 'center' }}
         >
-          Continue to writing samples →
+          Continue to writing samples <ArrowRight size={14} />
         </button>
       )}
     </div>
