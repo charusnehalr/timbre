@@ -57,6 +57,12 @@ export const apiClient = {
       body: JSON.stringify({ spaceId, history }),
     }),
 
+  getCorpusItems: (token: string, spaceId: string) =>
+    request<{ items: Array<{ id: string; content: string; source: string }> }>(
+      `/api/onboarding/corpus?spaceId=${spaceId}`,
+      { token },
+    ),
+
   addCorpus: (token: string, spaceId: string, content: string, source = 'import') =>
     request('/api/onboarding/corpus', {
       method: 'POST',
