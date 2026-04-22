@@ -61,4 +61,8 @@ Writing is the highest-leverage skill online — for founders, builders, job see
 
 ---
 
+Drive : https://drive.google.com/drive/u/0/folders/10e1k89h2IuH1LG9ppFshWlikTdsjO23Q
+
+---
+
 *Built by [@charusnehalr](https://github.com/charusnehalr)*
