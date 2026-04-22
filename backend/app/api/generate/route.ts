@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const user = await requireAuth(req);
     const body = Body.parse(await req.json());
 
-    await checkRateLimit(user.id, 'generate', 10);
+    await checkRateLimit(user.id, 'generate', 100);
 
     const profileRow = await getLatestProfile(user.id, body.spaceId);
     if (!profileRow) throw errors.notFound('No voice profile — complete onboarding first');

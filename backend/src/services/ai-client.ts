@@ -89,23 +89,35 @@ class AiClient {
 
   async *generateStream(input: GenerateInput): AsyncIterable<string> {
     logger.info({ spaceId: input.space_id }, '[ai-client] generateStream →');
+    const t = Date.now();
     const res = await fetch(`${this.baseUrl}/generate`, {
       method: 'POST',
-      headers: this.headers({ Accept: 'text/event-stream' }),
+      headers: this.headers(),
       body: JSON.stringify(input),
     });
+    const text = await res.text().catch(() => '');
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      logger.error({ status: res.status, body }, '[ai-client] generateStream FAILED');
-      throw new Error(`ai-core /generate error: ${res.status} — ${body}`);
+      logger.error({ status: res.status, body: text }, '[ai-client] generateStream FAILED');
+      // Try to extract detail from JSON error body
+      try {
+        const errBody = JSON.parse(text);
+        throw new Error(errBody.detail ?? `ai-core error ${res.status}`);
+      } catch {
+        throw new Error(`ai-core /generate error: ${res.status} — ${text.slice(0, 200)}`);
+      }
     }
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      yield decoder.decode(value);
+    logger.info({ ms: Date.now() - t }, '[ai-client] generateStream ✓');
+    // AI Core returns plain JSON; wrap as SSE so backend route + frontend parsing stays unchanged
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Fallback: AI Core may still be returning legacy SSE format (data: {...}\n\n)
+      const match = text.match(/^data: (.+)$/m);
+      if (!match) throw new Error(`ai-core returned unparseable response: ${text.slice(0, 100)}`);
+      data = JSON.parse(match[1]);
     }
+    yield `data: ${JSON.stringify(data)}\n\n`;
   }
 
   async embed(text: string): Promise<number[]> {
