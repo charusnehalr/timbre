@@ -222,12 +222,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               style={{
                 width: 40, height: 40, borderRadius: 12,
                 background: 'var(--accent)', color: '#0B0B0B',
-                fontFamily: 'var(--font-geist-mono)', fontSize: 18, fontWeight: 700,
+                fontFamily: 'var(--font-geist-mono)', fontSize: 15, fontWeight: 700,
                 letterSpacing: '-0.04em',
                 display: 'grid', placeItems: 'center',
               }}
             >
-              t
+              t.
             </div>
             <div
               style={{
