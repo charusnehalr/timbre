@@ -22,12 +22,20 @@ class GeminiProvider(LLMProvider):
     async def chat(self, model: str, messages: list[dict], **kwargs) -> str:
         log.info("gemini_chat_start", model=model, turns=len(messages))
         start = time.perf_counter()
+        contents = self._messages_to_prompt(messages)
         response = await self.client.aio.models.generate_content(
             model=model,
-            contents=self._messages_to_prompt(messages),
+            contents=contents,
         )
         log.info("gemini_chat_done", model=model, ms=round((time.perf_counter() - start) * 1000))
-        return response.text
+        text = response.text or ""
+        # Strip markdown code fences that Gemini sometimes wraps around JSON
+        if text.startswith("```"):
+            text = text.split("```", 2)[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.rsplit("```", 1)[0].strip()
+        return text
 
     async def chat_stream(self, model: str, messages: list[dict], **kwargs) -> AsyncIterator[str]:
         log.info("gemini_chat_stream_start", model=model)

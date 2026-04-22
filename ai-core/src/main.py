@@ -1,5 +1,4 @@
 import traceback
-import time
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -18,35 +17,16 @@ structlog.configure(
 
 log = structlog.get_logger()
 
-app = FastAPI(title="Timbre AI Core", version="0.1.0")
+# debug=True makes Starlette return real tracebacks instead of "Internal Server Error"
+# when an exception somehow escapes our handlers — safe to use locally
+app = FastAPI(title="Timbre AI Core", version="0.1.0", debug=True)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4000"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start = time.perf_counter()
-    log.info("request_started", method=request.method, path=request.url.path)
-    try:
-        response = await call_next(request)
-        elapsed = round((time.perf_counter() - start) * 1000)
-        log.info(
-            "request_finished",
-            method=request.method,
-            path=request.url.path,
-            status=response.status_code,
-            ms=elapsed,
-        )
-        return response
-    except Exception as exc:
-        elapsed = round((time.perf_counter() - start) * 1000)
-        log.error("request_failed", method=request.method, path=request.url.path, ms=elapsed, error=str(exc))
-        raise
 
 
 @app.exception_handler(Exception)

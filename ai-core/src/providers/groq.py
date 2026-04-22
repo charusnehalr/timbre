@@ -26,7 +26,7 @@ class GroqProvider(LLMProvider):
                 model=model, messages=messages, **kwargs,
             )
             log.info("groq_chat_done", model=model, ms=round((time.perf_counter() - start) * 1000))
-            return res.choices[0].message.content
+            return res.choices[0].message.content or ""
         except Exception as exc:
             log.error("groq_chat_failed", model=model, error=str(exc))
             raise

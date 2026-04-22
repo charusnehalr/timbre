@@ -47,10 +47,43 @@ class GeneratePipeline:
         self.router_provider = router_provider
         self.light_model = light_model
 
+    async def _direct_fallback(self, req: GenerateRequest) -> GenerateResponse:
+        """Bare-minimum fallback: one direct LLM call, no profile/critique machinery."""
+        import structlog
+        log = structlog.get_logger(__name__)
+        log.warning("pipeline_fallback", task=req.task[:60])
+
+        prompt = (
+            f"You are a writing assistant helping {req.user_name}.\n"
+            f"Write the following for them:\n\n{req.task}"
+        )
+        if req.retrieved_samples:
+            samples_text = "\n\n---\n\n".join(req.retrieved_samples[:3])
+            prompt += f"\n\nHere are some samples of their previous writing for style reference:\n\n{samples_text}"
+
+        draft = await self.router_provider.chat(
+            self.light_model,
+            [{"role": "user", "content": prompt}],
+        )
+        if not draft:
+            raise RuntimeError("Fallback LLM call returned empty response")
+
+        from ..schemas.critique import Critique as CritiqueSchema
+        dummy_critique = CritiqueSchema(score=0.70, issues=[], suggestions=[], strengths=[])
+        attempt = GenerationAttempt(attempt_number=1, draft=draft, critique=dummy_critique)
+        return GenerateResponse(draft=draft, voice_match_score=0.70, attempts=[attempt])
+
     async def run(self, req: GenerateRequest) -> GenerateResponse:
         import structlog
         log = structlog.get_logger(__name__)
 
+        try:
+            return await self._run_pipeline(req, log)
+        except Exception as exc:
+            log.error("pipeline_failed_trying_fallback", error=str(exc))
+            return await self._direct_fallback(req)
+
+    async def _run_pipeline(self, req: GenerateRequest, log) -> GenerateResponse:
         # Intent routing — fall back silently rather than aborting
         intent = req.intent
         if not intent:
@@ -81,10 +114,22 @@ class GeneratePipeline:
                 "\n".join(attempts[-1].critique.issues) if attempts else None
             )
 
-            draft = await self.generator.generate(
-                system_prompt=system_prompt,
-                feedback=feedback,
-            )
+            try:
+                draft = await self.generator.generate(
+                    system_prompt=system_prompt,
+                    feedback=feedback,
+                )
+            except Exception as exc:
+                log.error("generation_failed", attempt=i + 1, error=str(exc))
+                if not attempts:
+                    raise
+                break  # already have a previous attempt; use it
+
+            if not draft:
+                log.warning("empty_draft", attempt=i + 1)
+                if not attempts:
+                    raise RuntimeError("LLM returned an empty draft")
+                break
 
             # Critique is optional — if it fails, assign a passing score so we return the draft
             try:
@@ -107,7 +152,8 @@ class GeneratePipeline:
             if critique.score >= SCORE_THRESHOLD:
                 break
 
-        assert best is not None
+        if best is None:
+            raise RuntimeError("No successful generation attempt")
         return GenerateResponse(
             draft=best.draft,
             voice_match_score=best.critique.score,
