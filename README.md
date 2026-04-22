@@ -12,9 +12,10 @@ AI writes for everyone - and it sounds like it. Timbre learns how *you* write an
 
 | | |
 |---|---|
-| ![Screenshot 1](#) | ![Screenshot 2](#) |
-| ![Screenshot 3](#) | ![![alt text](image.png)](#) |
-
+<img width="1861" height="915" alt="image" src="https://github.com/user-attachments/assets/a4f89e52-9de0-4b4c-aa51-e2d9a36dcc3f" />
+<img width="1853" height="915" alt="image" src="https://github.com/user-attachments/assets/39cffd61-a054-436c-b79a-267669e3867c" />
+<img width="1854" height="914" alt="image" src="https://github.com/user-attachments/assets/18eb2015-efdc-4c9a-bb5e-ea9511ae1a98" />
+<img width="1859" height="924" alt="image" src="https://github.com/user-attachments/assets/2e915d26-1632-4d3c-8cb2-710ec1b7aaa9" />
 ---
 
 ## The Problem
