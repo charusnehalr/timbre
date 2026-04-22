@@ -8,7 +8,7 @@ AI writes for everyone - and it sounds like it. Timbre learns how *you* write an
 
 ## Demo
 
-> **[Watch demo video](#)**
+> **https://drive.google.com/file/d/1LRFE1ogKYF0liYoaLU-X5KekYBzfNQwg/view?usp=sharing**
 
 | | |
 |---|---|
